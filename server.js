@@ -13,6 +13,9 @@ app.use(express.json());
 const testRoutes = require("./routes/testRoutes");
 app.use("/", testRoutes);
 
+const authRoutes = require("./routes/authRoutes");
+app.use("/api/auth", authRoutes);
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
