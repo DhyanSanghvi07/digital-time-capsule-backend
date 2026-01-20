@@ -19,3 +19,6 @@ app.use("/api/auth", authRoutes);
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
+const protectedRoutes = require("./routes/protectedRoutes");
+app.use("/api", protectedRoutes);
