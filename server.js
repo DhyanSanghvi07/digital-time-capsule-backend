@@ -22,3 +22,6 @@ app.listen(PORT, () => {
 
 const protectedRoutes = require("./routes/protectedRoutes");
 app.use("/api", protectedRoutes);
+
+const capsuleRoutes = require("./routes/capsuleRoutes");
+app.use("/api/capsules", capsuleRoutes);
