@@ -7,32 +7,19 @@ const capsuleSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-
-    title: {
-      type: String,
-      required: true,
-    },
-
-    message: {
-      type: String,
-      required: true,
-    },
-
-    unlockDate: {
-      type: Date,
-      required: true,
-    },
-
-    isUnlocked: {
-      type: Boolean,
-      default: false,
-    },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    unlockDate: { type: Date, required: true },
+    isUnlocked: { type: Boolean, default: false },
+    media: [
+      {
+        type: { type: String, required: true },
+        url: { type: String, required: true },
+        publicId: { type: String, required: true },
+      },
+    ],
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true },
 );
 
-const Capsule = mongoose.model("Capsule", capsuleSchema);
-
-module.exports = Capsule;
+module.exports = mongoose.model("Capsule", capsuleSchema);

@@ -9,8 +9,11 @@ const {
 
 const protect = require("../middleware/authMiddleware");
 
-router.post("/", protect, createCapsule);
 router.get("/", protect, getUserCapsules);
 router.get("/:id", protect, getCapsuleById);
+
+const upload = require("../middleware/uploadMiddleware");
+router.post("/", protect, upload.array("media", 5), createCapsule);
+
 
 module.exports = router;
