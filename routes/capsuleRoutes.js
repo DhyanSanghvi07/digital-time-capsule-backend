@@ -5,15 +5,29 @@ const {
   createCapsule,
   getUserCapsules,
   getCapsuleById,
+  addVideoToCapsule,
 } = require("../controllers/capsuleController");
 
 const protect = require("../middleware/authMiddleware");
+const uploadImage = require("../middleware/uploadMiddleware");
+const uploadVideo = require("../middleware/uploadVideoMiddleware");
+
+router.post(
+  "/",
+  protect,
+  uploadImage.array("media", 5),
+  createCapsule
+);
 
 router.get("/", protect, getUserCapsules);
+
 router.get("/:id", protect, getCapsuleById);
 
-const upload = require("../middleware/uploadMiddleware");
-router.post("/", protect, upload.array("media", 5), createCapsule);
-
+router.post(
+  "/:id/videos",
+  protect,
+  uploadVideo.array("videos", 2),
+  addVideoToCapsule
+);
 
 module.exports = router;
