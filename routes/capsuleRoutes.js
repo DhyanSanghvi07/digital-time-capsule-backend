@@ -12,12 +12,7 @@ const protect = require("../middleware/authMiddleware");
 const uploadImage = require("../middleware/uploadMiddleware");
 const uploadVideo = require("../middleware/uploadVideoMiddleware");
 
-router.post(
-  "/",
-  protect,
-  uploadImage.array("media", 5),
-  createCapsule
-);
+router.post("/", protect, uploadImage.array("media", 5), createCapsule);
 
 router.get("/", protect, getUserCapsules);
 
@@ -27,7 +22,17 @@ router.post(
   "/:id/videos",
   protect,
   uploadVideo.array("videos", 2),
-  addVideoToCapsule
+  addVideoToCapsule,
+);
+
+const uploadAudio = require("../middleware/uploadAudioMiddleware");
+const { addAudioToCapsule } = require("../controllers/capsuleController");
+
+router.post(
+  "/:id/audio",
+  uploadAudio.array("audio", 3),
+  protect,
+  addAudioToCapsule,
 );
 
 module.exports = router;

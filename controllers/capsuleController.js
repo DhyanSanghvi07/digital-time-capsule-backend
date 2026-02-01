@@ -121,8 +121,33 @@ const addVideoToCapsule = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
 
-  
+const addAudioToCapsule = async (req, res) => {
+  const capsule = await Capsule.findById(req.params.id);
+
+  if (!capsule) {
+    return res.status(404).json({ message: "Capsule not found" });
+  }
+
+  // ownership check (VERY important)
+  if (capsule.user.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "Not authorized" });
+  }
+
+  const audioFiles = req.files.map((file) => ({
+    type: "audio",
+    url: file.path,
+    publicId: file.filename,
+  }));
+
+  capsule.media.push(...audioFiles);
+  await capsule.save();
+
+  res.status(201).json({
+    message: "Audio added successfully",
+    media: audioFiles,
+  });
 };
 
 module.exports = {
@@ -130,4 +155,5 @@ module.exports = {
   getUserCapsules,
   getCapsuleById,
   addVideoToCapsule,
+  addAudioToCapsule,
 };
