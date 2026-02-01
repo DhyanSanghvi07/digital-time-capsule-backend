@@ -1,6 +1,45 @@
 const Capsule = require("../models/Capsule");
 
-// CREATE CAPSULE
+/* =========================
+   UTILS
+========================= */
+
+// Human-readable remaining time
+const getRemainingTime = (unlockDate) => {
+  const now = new Date();
+  const diffMs = unlockDate - now;
+
+  if (diffMs <= 0) return null;
+
+  const seconds = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const months = Math.floor(days / 30);
+
+  if (months > 0) return `${months} month(s)`;
+  if (days > 0) return `${days} day(s)`;
+  if (hours > 0) return `${hours} hour(s)`;
+  if (minutes > 0) return `${minutes} minute(s)`;
+  return `${seconds} second(s)`;
+};
+
+// HARDENING: always fix unlock state based on time
+const ensureCapsuleUnlockState = async (capsule) => {
+  const now = new Date();
+
+  if (!capsule.isUnlocked && now >= capsule.unlockDate) {
+    capsule.isUnlocked = true;
+    await capsule.save();
+  }
+
+  return capsule;
+};
+
+/* =========================
+   CREATE CAPSULE
+========================= */
+
 const createCapsule = async (req, res) => {
   try {
     const { title, message, unlockDate } = req.body;
@@ -19,90 +58,127 @@ const createCapsule = async (req, res) => {
       message,
       unlockDate,
       media,
+      isUnlocked: false,
     });
 
-    res.status(201).json(capsule);
+    res.status(201).json({
+      success: true,
+      data: capsule,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// GET USER CAPSULES
+/* =========================
+   GET USER CAPSULES
+========================= */
+
 const getUserCapsules = async (req, res) => {
   try {
     const capsules = await Capsule.find({ user: req.user._id }).sort({
       unlockDate: 1,
     });
 
-    const now = new Date();
+    const formatted = [];
 
-    const formatted = capsules.map((capsule) => ({
-      _id: capsule._id,
-      title: capsule.title,
-      unlockDate: capsule.unlockDate,
-      status: now < capsule.unlockDate ? "locked" : "unlocked",
-    }));
+    for (const capsule of capsules) {
+      await ensureCapsuleUnlockState(capsule);
 
-    res.status(200).json(formatted);
+      const isLocked = new Date() < capsule.unlockDate;
+
+      formatted.push({
+        _id: capsule._id,
+        title: capsule.title,
+        unlockDate: capsule.unlockDate,
+        status: isLocked ? "locked" : "unlocked",
+        isLocked,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: formatted,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// GET SINGLE CAPSULE
+/* =========================
+   GET SINGLE CAPSULE
+========================= */
+
 const getCapsuleById = async (req, res) => {
   try {
     const capsule = await Capsule.findById(req.params.id);
 
-    if (!capsule) return res.status(404).json({ message: "Capsule not found" });
+    if (!capsule) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Capsule not found" });
+    }
 
-    if (capsule.user.toString() !== req.user._id.toString())
-      return res.status(403).json({ message: "Not authorized" });
+    // Ownership check
+    if (capsule.user.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized" });
+    }
 
-    const now = new Date();
-
-    if (now < capsule.unlockDate) {
+    // LOCKED STATE (pure time-based)
+    if (new Date() < capsule.unlockDate) {
       return res.status(200).json({
+        success: true,
         status: "locked",
+        isLocked: true,
         unlockDate: capsule.unlockDate,
+        unlocksIn: getRemainingTime(capsule.unlockDate),
         message: "This memory is waiting for the right moment…",
       });
     }
 
-    if (!capsule.isUnlocked) {
-      capsule.isUnlocked = true;
-      await capsule.save();
-    }
+    // HARDENED AUTO-UNLOCK
+    await ensureCapsuleUnlockState(capsule);
 
+    // UNLOCKED STATE
     res.status(200).json({
+      success: true,
       status: "unlocked",
+      isLocked: false,
       title: capsule.title,
       message: capsule.message,
       media: capsule.media,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Add video(s) to a capsule
-// @route   POST /api/capsules/:id/videos
-// @access  Private
+/* =========================
+   ADD VIDEOS
+========================= */
+
 const addVideoToCapsule = async (req, res) => {
   try {
     const capsule = await Capsule.findById(req.params.id);
 
     if (!capsule) {
-      return res.status(404).json({ message: "Capsule not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Capsule not found" });
     }
 
-    // Ownership check
     if (capsule.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Not authorized" });
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized" });
     }
 
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ message: "No videos uploaded" });
+      return res
+        .status(400)
+        .json({ success: false, message: "No videos uploaded" });
     }
 
     const videos = req.files.map((file) => ({
@@ -115,40 +191,63 @@ const addVideoToCapsule = async (req, res) => {
     await capsule.save();
 
     res.status(200).json({
+      success: true,
       message: "Video(s) added successfully",
-      media: capsule.media,
+      added: videos,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/* =========================
+   ADD AUDIO
+========================= */
 
 const addAudioToCapsule = async (req, res) => {
-  const capsule = await Capsule.findById(req.params.id);
+  try {
+    const capsule = await Capsule.findById(req.params.id);
 
-  if (!capsule) {
-    return res.status(404).json({ message: "Capsule not found" });
+    if (!capsule) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Capsule not found" });
+    }
+
+    if (capsule.user.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized" });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No audio files uploaded" });
+    }
+
+    const audioFiles = req.files.map((file) => ({
+      type: "audio",
+      url: file.path,
+      publicId: file.filename,
+    }));
+
+    capsule.media.push(...audioFiles);
+    await capsule.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Audio added successfully",
+      added: audioFiles,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
-
-  // ownership check (VERY important)
-  if (capsule.user.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: "Not authorized" });
-  }
-
-  const audioFiles = req.files.map((file) => ({
-    type: "audio",
-    url: file.path,
-    publicId: file.filename,
-  }));
-
-  capsule.media.push(...audioFiles);
-  await capsule.save();
-
-  res.status(201).json({
-    message: "Audio added successfully",
-    media: audioFiles,
-  });
 };
+
+/* =========================
+   EXPORTS
+========================= */
 
 module.exports = {
   createCapsule,
