@@ -1,4 +1,8 @@
+const mongoose = require("mongoose");
 const Capsule = require("../models/Capsule");
+const { successResponse, errorResponse } = require("../utils/response");
+const { MAX_MEDIA } = require("../config/limits");
+
 
 /* =========================
    UTILS
@@ -24,16 +28,22 @@ const getRemainingTime = (unlockDate) => {
   return `${seconds} second(s)`;
 };
 
-// HARDENING: always fix unlock state based on time
+// HARDENING: fix unlock state based on time
 const ensureCapsuleUnlockState = async (capsule) => {
-  const now = new Date();
-
-  if (!capsule.isUnlocked && now >= capsule.unlockDate) {
+  if (!capsule.isUnlocked && new Date() >= capsule.unlockDate) {
     capsule.isUnlocked = true;
     await capsule.save();
   }
-
   return capsule;
+};
+
+// ObjectId safety
+const validateObjectId = (id, res) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    errorResponse(res, 400, "Invalid capsule ID", "BAD_REQUEST");
+    return false;
+  }
+  return true;
 };
 
 /* =========================
@@ -43,6 +53,30 @@ const ensureCapsuleUnlockState = async (capsule) => {
 const createCapsule = async (req, res) => {
   try {
     const { title, message, unlockDate } = req.body;
+
+    if (!title || !message || !unlockDate) {
+      return errorResponse(
+        res,
+        400,
+        "Title, message, and unlockDate are required",
+        "BAD_REQUEST"
+      );
+    }
+
+    const parsedDate = new Date(unlockDate);
+
+    if (isNaN(parsedDate.getTime())) {
+      return errorResponse(res, 400, "Invalid unlockDate format", "BAD_REQUEST");
+    }
+
+    if (parsedDate <= new Date()) {
+      return errorResponse(
+        res,
+        400,
+        "unlockDate must be in the future",
+        "BAD_REQUEST"
+      );
+    }
 
     const media = req.files
       ? req.files.map((file) => ({
@@ -56,17 +90,14 @@ const createCapsule = async (req, res) => {
       user: req.user._id,
       title,
       message,
-      unlockDate,
+      unlockDate: parsedDate,
       media,
       isUnlocked: false,
     });
 
-    res.status(201).json({
-      success: true,
-      data: capsule,
-    });
+    return successResponse(res, 201, capsule);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return errorResponse(res, 500, error.message, "SERVER_ERROR");
   }
 };
 
@@ -96,12 +127,11 @@ const getUserCapsules = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      success: true,
-      data: formatted,
+    return successResponse(res, 200, formatted, {
+      count: formatted.length,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return errorResponse(res, 500, error.message, "SERVER_ERROR");
   }
 };
 
@@ -110,26 +140,21 @@ const getUserCapsules = async (req, res) => {
 ========================= */
 
 const getCapsuleById = async (req, res) => {
+  if (!validateObjectId(req.params.id, res)) return;
+
   try {
     const capsule = await Capsule.findById(req.params.id);
 
     if (!capsule) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Capsule not found" });
+      return errorResponse(res, 404, "Capsule not found", "NOT_FOUND");
     }
 
-    // Ownership check
     if (capsule.user.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Not authorized" });
+      return errorResponse(res, 403, "Not authorized", "FORBIDDEN");
     }
 
-    // LOCKED STATE (pure time-based)
     if (new Date() < capsule.unlockDate) {
-      return res.status(200).json({
-        success: true,
+      return successResponse(res, 200, {
         status: "locked",
         isLocked: true,
         unlockDate: capsule.unlockDate,
@@ -138,12 +163,9 @@ const getCapsuleById = async (req, res) => {
       });
     }
 
-    // HARDENED AUTO-UNLOCK
     await ensureCapsuleUnlockState(capsule);
 
-    // UNLOCKED STATE
-    res.status(200).json({
-      success: true,
+    return successResponse(res, 200, {
       status: "unlocked",
       isLocked: false,
       title: capsule.title,
@@ -151,7 +173,7 @@ const getCapsuleById = async (req, res) => {
       media: capsule.media,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return errorResponse(res, 500, error.message, "SERVER_ERROR");
   }
 };
 
@@ -160,25 +182,49 @@ const getCapsuleById = async (req, res) => {
 ========================= */
 
 const addVideoToCapsule = async (req, res) => {
+  if (!validateObjectId(req.params.id, res)) return;
+
   try {
     const capsule = await Capsule.findById(req.params.id);
 
     if (!capsule) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Capsule not found" });
+      return errorResponse(res, 404, "Capsule not found", "NOT_FOUND");
     }
 
     if (capsule.user.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Not authorized" });
+      return errorResponse(res, 403, "Not authorized", "FORBIDDEN");
     }
 
     if (!req.files || req.files.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "No videos uploaded" });
+      return errorResponse(res, 400, "No videos uploaded", "BAD_REQUEST");
+    }
+
+    const existingVideos = capsule.media.filter(
+      (m) => m.type === "video"
+    ).length;
+
+    if (existingVideos + req.files.length > MAX_MEDIA.video) {
+      return errorResponse(
+        res,
+        413,
+        "Video limit exceeded",
+        "LIMIT_EXCEEDED"
+      );
+    }
+
+    if (capsule.media.length + req.files.length > MAX_MEDIA.total) {
+      return errorResponse(
+        res,
+        413,
+        "Total media limit exceeded",
+        "LIMIT_EXCEEDED"
+      );
+    }
+
+    for (const file of req.files) {
+      if (!file.mimetype.startsWith("video/")) {
+        return errorResponse(res, 400, "Invalid video file", "BAD_REQUEST");
+      }
     }
 
     const videos = req.files.map((file) => ({
@@ -190,13 +236,12 @@ const addVideoToCapsule = async (req, res) => {
     capsule.media.push(...videos);
     await capsule.save();
 
-    res.status(200).json({
-      success: true,
+    return successResponse(res, 200, {
       message: "Video(s) added successfully",
       added: videos,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return errorResponse(res, 500, error.message, "SERVER_ERROR");
   }
 };
 
@@ -205,25 +250,49 @@ const addVideoToCapsule = async (req, res) => {
 ========================= */
 
 const addAudioToCapsule = async (req, res) => {
+  if (!validateObjectId(req.params.id, res)) return;
+
   try {
     const capsule = await Capsule.findById(req.params.id);
 
     if (!capsule) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Capsule not found" });
+      return errorResponse(res, 404, "Capsule not found", "NOT_FOUND");
     }
 
     if (capsule.user.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Not authorized" });
+      return errorResponse(res, 403, "Not authorized", "FORBIDDEN");
     }
 
     if (!req.files || req.files.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "No audio files uploaded" });
+      return errorResponse(res, 400, "No audio files uploaded", "BAD_REQUEST");
+    }
+
+    const existingAudio = capsule.media.filter(
+      (m) => m.type === "audio"
+    ).length;
+
+    if (existingAudio + req.files.length > MAX_MEDIA.audio) {
+      return errorResponse(
+        res,
+        413,
+        "Audio limit exceeded",
+        "LIMIT_EXCEEDED"
+      );
+    }
+
+    if (capsule.media.length + req.files.length > MAX_MEDIA.total) {
+      return errorResponse(
+        res,
+        413,
+        "Total media limit exceeded",
+        "LIMIT_EXCEEDED"
+      );
+    }
+
+    for (const file of req.files) {
+      if (!file.mimetype.startsWith("audio/")) {
+        return errorResponse(res, 400, "Invalid audio file", "BAD_REQUEST");
+      }
     }
 
     const audioFiles = req.files.map((file) => ({
@@ -235,13 +304,12 @@ const addAudioToCapsule = async (req, res) => {
     capsule.media.push(...audioFiles);
     await capsule.save();
 
-    res.status(201).json({
-      success: true,
+    return successResponse(res, 201, {
       message: "Audio added successfully",
       added: audioFiles,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return errorResponse(res, 500, error.message, "SERVER_ERROR");
   }
 };
 
