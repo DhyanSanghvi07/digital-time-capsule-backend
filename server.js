@@ -6,13 +6,14 @@ const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 
 const connectDB = require("./config/db");
-require("./config/env");
 
 dotenv.config();
 connectDB();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+require("./config/env");
 
 /* =========================
    SECURITY & GLOBAL MIDDLEWARE
@@ -25,7 +26,7 @@ app.use(
     origin: "*", // tighten later for frontend
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 // Rate limiting (API only)
