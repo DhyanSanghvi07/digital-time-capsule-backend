@@ -154,14 +154,15 @@ const getCapsuleById = async (req, res) => {
     }
 
     if (new Date() < capsule.unlockDate) {
-      return successResponse(res, 200, {
-        status: "locked",
-        isLocked: true,
-        unlockDate: capsule.unlockDate,
-        unlocksIn: getRemainingTime(capsule.unlockDate),
-        message: "This memory is waiting for the right moment…",
-      });
-    }
+  return successResponse(res, 200, {
+    status: "locked",
+    isLocked: true,
+    title: capsule.title,   
+    unlockDate: capsule.unlockDate,
+    unlocksIn: getRemainingTime(capsule.unlockDate),
+    message: "This memory is waiting for the right moment…",
+  });
+}
 
     await ensureCapsuleUnlockState(capsule);
 
