@@ -121,6 +121,7 @@ const getUserCapsules = async (req, res) => {
       formatted.push({
         _id: capsule._id,
         title: capsule.title,
+        message: capsule.message,
         unlockDate: capsule.unlockDate,
         status: isLocked ? "locked" : "unlocked",
         isLocked,
@@ -334,29 +335,52 @@ const updateCapsule = async (req, res) => {
 
     const { title, message, unlockDate } = req.body;
 
-    if (title) capsule.title = title;
-    if (message) capsule.message = message;
+    /* ================= TITLE & MESSAGE ================= */
 
-    if (unlockDate) {
+    // Allow empty string updates
+    if (title !== undefined) {
+      capsule.title = title.trim();
+    }
+
+    if (message !== undefined) {
+      capsule.message = message.trim();
+    }
+
+    /* ================= UNLOCK DATE ================= */
+
+    if (unlockDate !== undefined) {
       const parsedDate = new Date(unlockDate);
 
       if (isNaN(parsedDate.getTime())) {
         return errorResponse(res, 400, "Invalid unlock date", "BAD_REQUEST");
       }
 
-      if (parsedDate <= new Date()) {
-        return errorResponse(
-          res,
-          400,
-          "Unlock date must be in the future",
-          "BAD_REQUEST"
-        );
+      // Only validate if date actually changed
+      const oldDate = capsule.unlockDate
+        .toISOString()
+        .split("T")[0];
+
+      const newDate = parsedDate
+        .toISOString()
+        .split("T")[0];
+
+      if (oldDate !== newDate) {
+        if (parsedDate <= new Date()) {
+          return errorResponse(
+            res,
+            400,
+            "Unlock date must be in the future",
+            "BAD_REQUEST"
+          );
+        }
       }
 
       capsule.unlockDate = parsedDate;
     }
 
-    // Replace entire media if new files uploaded
+    /* ================= MEDIA REPLACEMENT ================= */
+
+    // Replace entire media only if new files uploaded
     if (req.files && req.files.length > 0) {
       const newMedia = req.files.map((file) => ({
         type: file.mimetype.startsWith("video/")
@@ -374,6 +398,7 @@ const updateCapsule = async (req, res) => {
     await capsule.save();
 
     return successResponse(res, 200, capsule);
+
   } catch (error) {
     return errorResponse(res, 500, error.message, "SERVER_ERROR");
   }
