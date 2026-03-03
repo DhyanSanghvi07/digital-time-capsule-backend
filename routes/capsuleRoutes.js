@@ -6,6 +6,7 @@ const {
   getUserCapsules,
   getCapsuleById,
   addVideoToCapsule,
+  updateCapsule,
 } = require("../controllers/capsuleController");
 
 const protect = require("../middleware/authMiddleware");
@@ -18,6 +19,12 @@ router.get("/", protect, getUserCapsules);
 
 router.get("/:id", protect, getCapsuleById);
 
+router.put(
+  "/:id",
+  protect,
+  uploadImage.array("media", 5), // allows replacing media
+  updateCapsule
+);
 router.post(
   "/:id/videos",
   protect,
@@ -34,5 +41,6 @@ router.post(
   protect,
   addAudioToCapsule,
 );
+
 
 module.exports = router;

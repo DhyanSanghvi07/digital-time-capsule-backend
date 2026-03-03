@@ -315,6 +315,70 @@ const addAudioToCapsule = async (req, res) => {
 };
 
 /* =========================
+   UPDATE CAPSULE
+========================= */
+
+const updateCapsule = async (req, res) => {
+  if (!validateObjectId(req.params.id, res)) return;
+
+  try {
+    const capsule = await Capsule.findById(req.params.id);
+
+    if (!capsule) {
+      return errorResponse(res, 404, "Capsule not found", "NOT_FOUND");
+    }
+
+    if (capsule.user.toString() !== req.user._id.toString()) {
+      return errorResponse(res, 403, "Not authorized", "FORBIDDEN");
+    }
+
+    const { title, message, unlockDate } = req.body;
+
+    if (title) capsule.title = title;
+    if (message) capsule.message = message;
+
+    if (unlockDate) {
+      const parsedDate = new Date(unlockDate);
+
+      if (isNaN(parsedDate.getTime())) {
+        return errorResponse(res, 400, "Invalid unlock date", "BAD_REQUEST");
+      }
+
+      if (parsedDate <= new Date()) {
+        return errorResponse(
+          res,
+          400,
+          "Unlock date must be in the future",
+          "BAD_REQUEST"
+        );
+      }
+
+      capsule.unlockDate = parsedDate;
+    }
+
+    // Replace entire media if new files uploaded
+    if (req.files && req.files.length > 0) {
+      const newMedia = req.files.map((file) => ({
+        type: file.mimetype.startsWith("video/")
+          ? "video"
+          : file.mimetype.startsWith("audio/")
+          ? "audio"
+          : "image",
+        url: file.path,
+        publicId: file.filename,
+      }));
+
+      capsule.media = newMedia;
+    }
+
+    await capsule.save();
+
+    return successResponse(res, 200, capsule);
+  } catch (error) {
+    return errorResponse(res, 500, error.message, "SERVER_ERROR");
+  }
+};
+/* =========================
    EXPORTS
 ========================= */
 
@@ -324,4 +388,5 @@ module.exports = {
   getCapsuleById,
   addVideoToCapsule,
   addAudioToCapsule,
+  updateCapsule,
 };
