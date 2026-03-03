@@ -123,6 +123,7 @@ const getUserCapsules = async (req, res) => {
         title: capsule.title,
         message: capsule.message,
         unlockDate: capsule.unlockDate,
+        media: capsule.media, 
         status: isLocked ? "locked" : "unlocked",
         isLocked,
       });
