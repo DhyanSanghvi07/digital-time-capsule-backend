@@ -6,6 +6,7 @@ const {
   getUserCapsules,
   getCapsuleById,
   addVideoToCapsule,
+  deleteCapsule,
   updateCapsule,
 } = require("../controllers/capsuleController");
 
@@ -42,5 +43,8 @@ router.post(
   addAudioToCapsule,
 );
 
+router.delete(
+  "/:id",protect,deleteCapsule
+);
 
 module.exports = router;

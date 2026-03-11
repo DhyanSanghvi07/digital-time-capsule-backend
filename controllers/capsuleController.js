@@ -317,6 +317,35 @@ const addAudioToCapsule = async (req, res) => {
 };
 
 /* =========================
+  DELETE CAPSULE
+========================= */
+
+const deleteCapsule = async (req, res) => {
+  try {
+    if (!validateObjectId(req.params.id, res)) return;
+
+    const capsule = await Capsule.findById(req.params.id);
+
+    if (!capsule) {
+      return errorResponse(res, 404, "Capsule not found", "NOT_FOUND");
+    }
+
+    if (capsule.user.toString() !== req.user._id.toString()) {
+      return errorResponse(res, 403, "Not authorized", "FORBIDDEN");
+    }
+
+    await capsule.deleteOne();
+
+    return successResponse(res, 200, {
+      message: "Capsule deleted successfully",
+    });
+
+  } catch (error) {
+    return errorResponse(res, 500, error.message, "SERVER_ERROR");
+  }
+};
+
+/* =========================
    UPDATE CAPSULE
 ========================= */
 
@@ -428,6 +457,7 @@ const updateCapsule = async (req, res) => {
     return errorResponse(res, 500, error.message, "SERVER_ERROR");
   }
 };
+
 /* =========================
    EXPORTS
 ========================= */
@@ -438,5 +468,6 @@ module.exports = {
   getCapsuleById,
   addVideoToCapsule,
   addAudioToCapsule,
+  deleteCapsule,
   updateCapsule,
 };
