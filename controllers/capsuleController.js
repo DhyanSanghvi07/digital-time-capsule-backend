@@ -407,48 +407,6 @@ const updateCapsule = async (req, res) => {
 
       capsule.unlockDate = parsedDate;
     }
-
-    /* ================= MEDIA APPEND ================= */
-
-    if (req.files && req.files.length > 0) {
-  const newMedia = req.files.map((file) => ({
-    type: file.mimetype.startsWith("video/")
-      ? "video"
-      : file.mimetype.startsWith("audio/")
-      ? "audio"
-      : file.mimetype.startsWith("image/")
-      ? "image"
-      : "file",
-    url: file.path,
-    publicId: file.filename,
-  }));
-   const existingVideo = capsule.media.filter(m => m.type === "video").length;
-  const existingAudio = capsule.media.filter(m => m.type === "audio").length;
-
-  // 🔎 New counts
-  const newVideo = newMedia.filter(m => m.type === "video").length;
-  const newAudio = newMedia.filter(m => m.type === "audio").length;
-
-  // 🎥 Video limit check
-  if (existingVideo + newVideo > MAX_MEDIA.video) {
-    return errorResponse(res, 413, "Video limit exceeded", "LIMIT_EXCEEDED");
-  }
-
-  // 🎵 Audio limit check
-  if (existingAudio + newAudio > MAX_MEDIA.audio) {
-    return errorResponse(res, 413, "Audio limit exceeded", "LIMIT_EXCEEDED");
-  }
-  if (capsule.media.length + newMedia.length > MAX_MEDIA.total) {
-  return errorResponse(
-    res,
-    413,
-    "Total media limit exceeded",
-    "LIMIT_EXCEEDED"
-  );
-}
-  capsule.media.push(...newMedia);
-}
-
     await capsule.save();
 
     return successResponse(res, 200, capsule);
