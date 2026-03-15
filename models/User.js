@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-// Define user schema
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -18,13 +17,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    otp: String,
+    otpExpires: Date,
+    otpLastSent: Date,
   },
   {
     timestamps: true,
   }
 );
 
-// Create User model
-const User = mongoose.model("User", userSchema);
-
-module.exports = User;
+module.exports = mongoose.model("User", userSchema);
