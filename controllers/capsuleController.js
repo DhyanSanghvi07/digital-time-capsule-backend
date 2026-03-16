@@ -79,12 +79,25 @@ const createCapsule = async (req, res) => {
     }
 
     const media = req.files
-      ? req.files.map((file) => ({
-          type: "image",
-          url: file.path,
-          publicId: file.filename,
-        }))
-      : [];
+  ? req.files.map((file) => {
+
+      let type = "image";
+
+      if (file.mimetype.startsWith("video/")) {
+        type = "video";
+      }
+
+      if (file.mimetype.startsWith("audio/")) {
+        type = "audio";
+      }
+
+      return {
+        type,
+        url: file.path,
+        publicId: file.filename,
+      };
+    })
+  : [];
 
     const capsule = await Capsule.create({
       user: req.user._id,
