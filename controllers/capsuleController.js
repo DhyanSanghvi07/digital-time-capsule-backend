@@ -92,7 +92,7 @@ const createCapsule = async (req, res) => {
       return errorResponse(res, 400, "Invalid unlockDate format", "BAD_REQUEST");
     }
 
-    if (parsedDate <= new Date()) {
+    if (parsedDate.getTime() <= new Date()) {
       return errorResponse(
         res,
         400,
@@ -156,14 +156,15 @@ const getUserCapsules = async (req, res) => {
 
       const isLocked = new Date() < capsule.unlockDate;
 
+      const isUnlocked = new Date() >= capsule.unlockDate;
+
       formatted.push({
         _id: capsule._id,
         title: capsule.title,
         message: capsule.message,
         unlockDate: capsule.unlockDate,
-        media: capsule.media, 
-        status: isLocked ? "locked" : "unlocked",
-        isLocked,
+        media: capsule.media,
+        isUnlocked, // ✅ ADD THIS
       });
     }
 
@@ -193,26 +194,20 @@ const getCapsuleById = async (req, res) => {
       return errorResponse(res, 403, "Not authorized", "FORBIDDEN");
     }
 
-    if (new Date() < capsule.unlockDate) {
-  return successResponse(res, 200, {
-    status: "locked",
-    isLocked: true,
-    title: capsule.title,   
-    unlockDate: capsule.unlockDate,
-    unlocksIn: getRemainingTime(capsule.unlockDate),
-    message: "This memory is waiting for the right moment…",
-  });
-}
-
     await ensureCapsuleUnlockState(capsule);
 
+    const isUnlocked = new Date() >= capsule.unlockDate;
+
     return successResponse(res, 200, {
-      status: "unlocked",
-      isLocked: false,
+      _id: capsule._id,
       title: capsule.title,
       message: capsule.message,
+      unlockDate: capsule.unlockDate,
+      createdAt: capsule.createdAt,
       media: capsule.media,
+      isUnlocked: isUnlocked, // ✅ IMPORTANT
     });
+
   } catch (error) {
     return errorResponse(res, 500, error.message, "SERVER_ERROR");
   }
@@ -463,7 +458,7 @@ const updateCapsule = async (req, res) => {
         .split("T")[0];
 
       if (oldDate !== newDate) {
-        if (parsedDate <= new Date()) {
+        if (parsedDate.getTime() <= new Date()) {
           return errorResponse(
             res,
             400,
