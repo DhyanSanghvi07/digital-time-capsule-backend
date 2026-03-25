@@ -11,6 +11,10 @@ const capsuleSchema = new mongoose.Schema(
     message: { type: String, required: true },
     unlockDate: { type: Date, required: true },
     isUnlocked: { type: Boolean, default: false },
+     theme: {
+      type: String,
+      default: "classic",
+    },
     media: [
       {
         type: { type: String, required: true },

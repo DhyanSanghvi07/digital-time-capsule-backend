@@ -52,7 +52,7 @@ const validateObjectId = (id, res) => {
 
 const createCapsule = async (req, res) => {
   try {
-    const { title, message, unlockDate,imageCaptions,imageCaptionColors,imageReactions } = req.body;
+    const { title, message, unlockDate,theme, imageCaptions,imageCaptionColors,imageReactions } = req.body;
     let captions = {};
     let reactions = {};
     let colors = {};
@@ -130,6 +130,7 @@ const createCapsule = async (req, res) => {
       message,
       unlockDate: parsedDate,
       media,
+      theme: theme || "classic",
       isUnlocked: false,
     });
 
@@ -164,6 +165,7 @@ const getUserCapsules = async (req, res) => {
         message: capsule.message,
         unlockDate: capsule.unlockDate,
         media: capsule.media,
+        theme: capsule.theme,
         isUnlocked, // ✅ ADD THIS
       });
     }
@@ -205,6 +207,7 @@ const getCapsuleById = async (req, res) => {
       unlockDate: capsule.unlockDate,
       createdAt: capsule.createdAt,
       media: capsule.media,
+      theme: capsule.theme,
       isUnlocked: isUnlocked, // ✅ IMPORTANT
     });
 
