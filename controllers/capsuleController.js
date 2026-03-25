@@ -52,8 +52,31 @@ const validateObjectId = (id, res) => {
 
 const createCapsule = async (req, res) => {
   try {
-    const { title, message, unlockDate } = req.body;
+    const { title, message, unlockDate,imageCaptions,imageCaptionColors,imageReactions } = req.body;
+    let captions = {};
+    let reactions = {};
+    let colors = {};
 
+    try {
+      captions =
+        typeof imageCaptions === "string"
+          ? JSON.parse(imageCaptions)
+          : imageCaptions || {};
+    } catch {}
+
+    try {
+      reactions =
+        typeof imageReactions === "string"
+          ? JSON.parse(imageReactions)
+          : imageReactions || {};
+    } catch {}
+
+    try {
+      colors =
+        typeof imageCaptionColors === "string"
+          ? JSON.parse(imageCaptionColors)
+          : imageCaptionColors || {};
+    } catch {}
     if (!title || !message || !unlockDate) {
       return errorResponse(
         res,
@@ -78,9 +101,8 @@ const createCapsule = async (req, res) => {
       );
     }
 
-    const media = req.files
-  ? req.files.map((file) => {
-
+   const media = req.files
+  ? req.files.map((file, index) => {
       let type = "image";
 
       if (file.mimetype.startsWith("video/")) {
@@ -95,6 +117,9 @@ const createCapsule = async (req, res) => {
         type,
         url: file.path,
         publicId: file.filename,
+        caption: captions[index] || "",
+        captionColor: colors[index] || "#ffffff",
+        reaction: reactions[index] || "",
       };
     })
   : [];
@@ -244,10 +269,13 @@ const addVideoToCapsule = async (req, res) => {
     }
 
     const videos = req.files.map((file) => ({
-      type: "video",
-      url: file.path,
-      publicId: file.filename,
-    }));
+    type: "video",
+    url: file.path,
+    publicId: file.filename,
+    caption: "",
+    captionColor: "#ffffff",
+    reaction: ""
+  }));
 
     capsule.media.push(...videos);
     await capsule.save();
@@ -312,10 +340,13 @@ const addAudioToCapsule = async (req, res) => {
     }
 
     const audioFiles = req.files.map((file) => ({
-      type: "audio",
-      url: file.path,
-      publicId: file.filename,
-    }));
+    type: "audio",
+    url: file.path,
+    publicId: file.filename,
+    caption: "",
+    captionColor: "#ffffff",
+    reaction: ""
+  }));
 
     capsule.media.push(...audioFiles);
     await capsule.save();
@@ -376,7 +407,31 @@ const updateCapsule = async (req, res) => {
       return errorResponse(res, 403, "Not authorized", "FORBIDDEN");
     }
 
-    const { title, message, unlockDate } = req.body;
+    const { title, message, unlockDate, imageCaptions,imageCaptionColors,imageReactions } = req.body;
+    let captions = {};
+    let reactions = {};
+    let colors = {};
+
+    try {
+      captions =
+        typeof imageCaptions === "string"
+          ? JSON.parse(imageCaptions)
+          : imageCaptions || {};
+    } catch {}
+
+    try {
+      reactions =
+        typeof imageReactions === "string"
+          ? JSON.parse(imageReactions)
+          : imageReactions || {};
+    } catch {}
+
+    try {
+      colors =
+        typeof imageCaptionColors === "string"
+          ? JSON.parse(imageCaptionColors)
+          : imageCaptionColors || {};
+    } catch {}
 
     /* ================= TITLE & MESSAGE ================= */
 
@@ -420,6 +475,14 @@ const updateCapsule = async (req, res) => {
 
       capsule.unlockDate = parsedDate;
     }
+    if (imageCaptions || imageReactions || imageCaptionColors) {
+  capsule.media = capsule.media.map((item, index) => ({
+    ...item,
+    caption: captions[index] || item.caption,
+    captionColor: colors[index] || item.captionColor,
+    reaction: reactions[index] || item.reaction,
+  }));
+}
     await capsule.save();
 
     return successResponse(res, 200, capsule);
