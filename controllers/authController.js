@@ -38,7 +38,18 @@ const registerUser = async (req, res) => {
       otpLastSent: Date.now(),
     });
 
-    await sendEmail(email, otp);
+    await sendEmail({
+  to: email,
+  subject: "Email Verification OTP",
+  html: `
+    <div style="font-family:Arial;padding:20px">
+      <h2>Email Verification</h2>
+      <p>Your OTP is:</p>
+      <h1>${otp}</h1>
+      <p>This OTP will expire in ${process.env.OTP_EXPIRY || 5} minutes.</p>
+    </div>
+  `,
+});
 
     res.status(201).json({
       message: "OTP sent to email. Please verify.",
@@ -109,7 +120,18 @@ const resendOTP = async (req, res) => {
 
     await user.save();
 
-    await sendEmail(email, otp);
+    await sendEmail({
+  to: email,
+  subject: "Resend OTP - Digital Time Capsule",
+  html: `
+    <div style="font-family:Arial;padding:20px">
+      <h2>OTP Resent</h2>
+      <p>Your new OTP is:</p>
+      <h1>${otp}</h1>
+      <p>This OTP will expire in ${process.env.OTP_EXPIRY || 5} minutes.</p>
+    </div>
+  `,
+});
 
     res.json({
       message: "OTP resent successfully",

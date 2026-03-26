@@ -18,7 +18,7 @@ function getTomorrowRange() {
 }
 
 // ✅ TEST MODE
-cron.schedule("* * * * *", async () => {
+cron.schedule("0 9  * * *", async () => {
   console.log("📩 Running capsule reminder job...");
 
   try {
