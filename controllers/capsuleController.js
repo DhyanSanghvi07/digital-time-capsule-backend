@@ -99,7 +99,7 @@ const createCapsule = async (req, res) => {
       return errorResponse(res, 400, "Invalid unlockDate format", "BAD_REQUEST");
     }
 
-    if (parsedDate.getTime() <= new Date()) {
+    if (parsedDate.getTime() < new Date()) {
       return errorResponse(
         res,
         400,
