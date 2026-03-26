@@ -14,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 require("./config/env");
-
+require("./cron/reminderJob");
 /* =========================
    SECURITY & GLOBAL MIDDLEWARE
 ========================= */

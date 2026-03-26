@@ -1,31 +1,31 @@
 const nodemailer = require("nodemailer");
 
-const sendEmail = async (email, otp) => {
+// ✅ Create transporter once (optimized)
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  });
+// ✅ Generic reusable email sender
+const sendEmail = async ({ to, subject, html }) => {
+  try {
+    const mailOptions = {
+      from: `"Digital Time Capsule" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html,
+    };
 
-  const mailOptions = {
-    from: `"Digital Time Capsule" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: "Email Verification OTP",
-    text: `Your OTP for Digital Time Capsule verification is: ${otp}`,
-    html: `
-      <div style="font-family:Arial;padding:20px">
-        <h2>Email Verification</h2>
-        <p>Your OTP is:</p>
-        <h1>${otp}</h1>
-        <p>This OTP will expire in ${process.env.OTP_EXPIRY || 5} minutes.</p>
-      </div>
-    `
-  };
+    const info = await transporter.sendMail(mailOptions);
 
-  await transporter.sendMail(mailOptions);
+    console.log("✅ Email sent:", info.response);
+  } catch (error) {
+    console.error("❌ Email error:", error);
+    throw error;
+  }
 };
 
 module.exports = sendEmail;
