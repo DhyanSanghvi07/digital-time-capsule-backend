@@ -11,10 +11,10 @@ const {
 } = require("../controllers/capsuleController");
 
 const protect = require("../middleware/authMiddleware");
-const uploadImage = require("../middleware/uploadMiddleware");
+const upload = require("../middleware/uploadMiddleware");
 const uploadVideo = require("../middleware/uploadVideoMiddleware");
 
-router.post("/", protect, uploadImage.array("media", 10), createCapsule);
+router.post("/", protect, upload.array("media", 10), createCapsule);
 
 router.get("/", protect, getUserCapsules);
 
@@ -23,7 +23,7 @@ router.get("/:id", protect, getCapsuleById);
 router.put(
   "/:id",
   protect,
-  uploadImage.array("media", 10), // allows replacing media
+  upload.array("media", 10), // allows replacing media
   updateCapsule
 );
 router.post(
@@ -37,9 +37,9 @@ const uploadAudio = require("../middleware/uploadAudioMiddleware");
 const { addAudioToCapsule } = require("../controllers/capsuleController");
 
 router.post(
-  "/:id/audio",
-  uploadAudio.array("audio", 5),
+  "/:id/audio", 
   protect,
+  uploadAudio.array("audio", 5),
   addAudioToCapsule,
 );
 

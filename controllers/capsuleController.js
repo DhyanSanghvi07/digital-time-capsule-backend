@@ -85,7 +85,14 @@ const createCapsule = async (req, res) => {
         "BAD_REQUEST"
       );
     }
-
+    if (!req.files || req.files.length === 0) {
+  return errorResponse(
+    res,
+    400,
+    "At least one media file is required",
+    "BAD_REQUEST"
+  );
+}
     const parsedDate = new Date(unlockDate);
 
     if (isNaN(parsedDate.getTime())) {
